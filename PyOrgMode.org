@@ -527,10 +527,48 @@
     :END:
 #+srcname: test_test.org
 #+begin_src python :tangle test.py :exports code
-import PyOrgMode
-test = PyOrgMode.DataStructure()
-test.load_from_file("test.org")
-test.save_to_file("output.org")
+    """Tests for parsing and outputting a simple .org test file
+    
+    You need the fr_FR.UTF-8 locale to run these tests
+    """
+    
+    import locale
+    import PyOrgMode
+    try:
+        import unittest2 as unittest
+    except ImportError:
+        import unittest
+    
+    
+    def _normalize_ignored(line):
+        """Normalize a line to ignore differences which aren't yet handled"""
+        if (line.startswith('   ')
+            and line[3:].startswith(('CLOCK: [',
+                                     ':PROPERTIES:',
+                                     ':ORDERED:',
+                                     ':CLOCKSUM:',
+                                     ':END:'))):
+            line = line[3:]
+        line = line.replace(':ORDERED:  t', ':ORDERED: t')
+        return line
+    
+    
+    class TestExampleOrgFile(unittest.TestCase):
+        def test_test_org(self):
+            test = PyOrgMode.DataStructure()
+            test.load_from_file("test.org")
+            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+            test.save_to_file("output.org")
+            original = [_normalize_ignored(line) for line in open("test.org")]
+            saved = [_normalize_ignored(line) for line in open("output.org")]
+            self.assertEqual(saved, original)
+    
+    
+    if __name__ == '__main__':
+        unittest.main()
+    
+      
+    
 #+end_src
 *** Read all the DEADLINE and SCHEDULED elements and put them in a file alone
     :PROPERTIES:
@@ -540,6 +578,12 @@ test.save_to_file("output.org")
 #+begin_src python :tangle test_simple-agenda.py :exports code
   import PyOrgMode
   import copy
+  try:
+      import unittest2 as unittest
+  except ImportError:
+      import unittest
+  
+  
   def Get_Scheduled_Elements(element, data=[]):
       """
       Grab the data from all scheduled elements for all the tree defined by 'element' recursively.
@@ -554,20 +598,40 @@ test.save_to_file("output.org")
               Get_Scheduled_Elements(child,data)
       return data
   
-  # Creating the input and output files data structures
-  input_file = PyOrgMode.DataStructure()
-  output_file = PyOrgMode.DataStructure()
   
-  # Loading from agenda.org file
-  input_file.load_from_file("agenda.org")
+  class TestAgenda(unittest.TestCase):
+      def test_agenda(self):
+          # Creating the input and output files data structures
+          input_file = PyOrgMode.DataStructure()
+          output_file = PyOrgMode.DataStructure()
   
-  # Get the scheduled elements (those with SCHEDULE, DEADLINE in them, not in the node name)
-  scheduled_elements = Get_Scheduled_Elements(input_file.root)
+          # Loading from agenda.org file
+          input_file.load_from_file("agenda.org")
   
-  # Assign these element to the root (reparent each elements recursively, relevel them cleanly)
-  output_file.root.append_clean(scheduled_elements)
+          # Get the scheduled elements (those with SCHEDULE, DEADLINE in them, not in the node name)
+          scheduled_elements = Get_Scheduled_Elements(input_file.root)
   
-  output_file.save_to_file("test_scheduled_output.org")
+          # Assign these element to the root (reparent each elements recursively, relevel them cleanly)
+          output_file.root.append_clean(scheduled_elements)
+  
+          output_file.save_to_file("test_scheduled_output.org")
+  
+          saved = open("test_scheduled_output.org").readlines()
+          self.assertEqual(saved, ['* Element 1\n',
+                                   'SCHEDULED: <2011-02-08 mar.>\n',
+                                   '* Element 3\n',
+                                   'DEADLINE: <2011-02-08 mar.>\n',
+                                   '** Test\n',
+                                   '** Element 4\n',
+                                   'SCHEDULED: <2011-02-08 mar.>\n',
+                                   '*** Couic\n',
+                                   '* Element 4\n',
+                                   'SCHEDULED: <2011-02-08 mar.>\n',
+                                   '** Couic\n'])
+  
+  
+  if __name__ == '__main__':
+      unittest.main()
   
 #+end_src
 *** Date and time formatting
