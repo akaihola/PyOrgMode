@@ -382,6 +382,7 @@
                   # If we are going back one or more levels, walk through parents
                   while len(heading[0][0]) < current.level:
                       current = current.parent
+                      parent = current.parent
     
               # Creating a new node and assigning parameters
               current = Node.Element() 
@@ -662,4 +663,43 @@
   if __name__ == '__main__':
       unittest.main()
   
+#+end_src
+*** Parser test
+#+srcname: test_parser.org
+#+begin_src python :tangle test_parser.py :exports code
+  import PyOrgMode
+  import tempfile
+  import unittest
+  
+  
+  class TestParser(unittest.TestCase):
+      """Test the org file parser with a simple org structure"""
+  
+      def setUp(self):
+          """Parse the org structure from a temporary file"""
+          orgfile = tempfile.NamedTemporaryFile()
+          orgfile.write('\n'.join((
+              '* one',
+              '* two',
+              '** two point one',
+              '* three',
+              '')))
+          orgfile.flush()
+          self.tree = PyOrgMode.DataStructure()
+          try:
+              self.tree.load_from_file(orgfile.name)
+          finally:
+              orgfile.close()
+  
+      def test_has_three_top_level_headings(self):
+          """The example has three top-level headings"""
+          self.assertEqual(len(self.tree.root.content), 3)
+  
+      def test_second_item_has_a_subheading(self):
+          """The second top-level heading has one subheading"""
+          self.assertEqual(len(self.tree.root.content[1].content), 1)
+  
+  
+  if __name__ == '__main__':
+      unittest.main()
 #+end_src

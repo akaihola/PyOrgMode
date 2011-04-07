@@ -234,6 +234,7 @@ class Node(OrgPlugin):
                 # If we are going back one or more levels, walk through parents
                 while len(heading[0][0]) < current.level:
                     current = current.parent
+                    parent = current.parent
   
             # Creating a new node and assigning parameters
             current = Node.Element() 
