@@ -357,6 +357,45 @@
           
   
 #+end_src
+*** Class Closed
+    :PROPERTIES:
+    :ID:       6f9f2e24-8e1d-4cbf-9fc4-bfe3a13a9b0f
+    :END:
+#+srcname: class_Closed
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Closed(OrgPlugin):
+      """Plugin for Closed elements"""
+      def __init__(self):
+          OrgPlugin.__init__(self)
+          self.regexp = re.compile("\s*CLOSED:\s*\[(.*?)\]")
+      def _treat(self,current,line):
+          closed = self.regexp.findall(line)
+          if closed:
+              current.append(self.Element(closed[0]))
+          else:
+              self.treated = False
+          return current
+  
+      class Element(OrgElement):
+          """Closed is an element taking into account CLOSED elements"""
+          TYPE = "CLOSED_ELEMENT"
+          def __init__(self,timestamp=""):
+              OrgElement.__init__(self)
+              self.dateformat = "%Y-%m-%d %a %H:%M"
+              self.timestamp = self.convert_date(timestamp)
+          def convert_date(self,date):
+              """Used to convert dates from a different TZ"""
+              return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
+          def __str__(self):
+              """Outputs the Closed element in text format
+  
+              Example output:
+              CLOSED: [2010-11-20 Sun 19:42]
+              """
+              timestamp = time.strftime(self.dateformat, self.timestamp)
+              return "CLOSED: [%s]\n" % timestamp
+  
+#+end_src
 *** Class Node
     :PROPERTIES:
     :ID:       3b4ae05e-be52-4854-a638-ecc8d2480512
@@ -482,7 +521,7 @@
       def __init__(self):
           OrgElement.__init__(self)
           self.plugins = []
-          self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock())
+          self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock(),Closed())
           # Add a root element
           # The root node is a special node (no parent) used as a container for the file
           self.root = Node.Element()
@@ -669,6 +708,7 @@
 #+begin_src python :tangle test_parser.py :exports code
   import PyOrgMode
   import tempfile
+  import time
   import unittest
   
   
@@ -680,6 +720,7 @@
           orgfile = tempfile.NamedTemporaryFile()
           orgfile.write('\n'.join((
               '* one',
+              'CLOSED: [2011-04-11 Thu 15:05]',
               '* two',
               '** two point one',
               '* three',
@@ -699,7 +740,23 @@
           """The second top-level heading has one subheading"""
           self.assertEqual(len(self.tree.root.content[1].content), 1)
   
+      def test_first_item_has_one_subitem(self):
+          """The first top-level heading has one sub-item"""
+          self.assertEqual(len(self.tree.root.content[0].content), 1)
+  
+      def test_first_item_is_closed(self):
+          """The first top-level heading is closed"""
+          self.assertEqual(self.tree.root.content[0].content[0].__class__,
+                           PyOrgMode.Closed.Element)
+  
+      def test_first_item_closed_time(self):
+          """The first top-level heading closed time is correct"""
+          self.assertEqual(
+              self.tree.root.content[0].content[0].timestamp,
+              time.strptime('2011-04-11 15:05', '%Y-%m-%d %H:%M'))
+  
   
   if __name__ == '__main__':
       unittest.main()
+  
 #+end_src

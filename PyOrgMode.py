@@ -215,6 +215,38 @@ class Table(OrgPlugin):
                 output = output + "\n"
             return output
 
+class Closed(OrgPlugin):
+    """Plugin for Closed elements"""
+    def __init__(self):
+        OrgPlugin.__init__(self)
+        self.regexp = re.compile("\s*CLOSED:\s*\[(.*?)\]")
+    def _treat(self,current,line):
+        closed = self.regexp.findall(line)
+        if closed:
+            current.append(self.Element(closed[0]))
+        else:
+            self.treated = False
+        return current
+
+    class Element(OrgElement):
+        """Closed is an element taking into account CLOSED elements"""
+        TYPE = "CLOSED_ELEMENT"
+        def __init__(self,timestamp=""):
+            OrgElement.__init__(self)
+            self.dateformat = "%Y-%m-%d %a %H:%M"
+            self.timestamp = self.convert_date(timestamp)
+        def convert_date(self,date):
+            """Used to convert dates from a different TZ"""
+            return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
+        def __str__(self):
+            """Outputs the Closed element in text format
+
+            Example output:
+            CLOSED: [2010-11-20 Sun 19:42]
+            """
+            timestamp = time.strftime(self.dateformat, self.timestamp)
+            return "CLOSED: [%s]\n" % timestamp
+
 class Node(OrgPlugin):
     def __init__(self):
         OrgPlugin.__init__(self)
@@ -327,7 +359,7 @@ class DataStructure(OrgElement):
     def __init__(self):
         OrgElement.__init__(self)
         self.plugins = []
-        self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock())
+        self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock(),Closed())
         # Add a root element
         # The root node is a special node (no parent) used as a container for the file
         self.root = Node.Element()
